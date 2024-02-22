@@ -3,11 +3,11 @@ name: Train and Inference with SLSA
 on:
   workflow_dispatch:
     inputs:
-        model_type:
-          description: Name of the model (implies framework)
-          required: true
-          type: choice
-          options:
+      model_type:
+        description: Name of the model (implies framework)
+        required: true
+        type: choice
+        options:
           - model.pth
   push:
     branches:
@@ -16,7 +16,6 @@ on:
       - '**/*.md'
       - '*.md'
   
-
 permissions: read-all
 
 defaults:
@@ -28,58 +27,56 @@ jobs:
     name: Train model
     runs-on: ${{ matrix.os }}
     strategy:
-        fail-fast: false # Don't cancel other jobs if one fails
-        matrix:
-          os: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false # Don't cancel other jobs if one fails
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.12.2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.12.2
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Generate Dataset
-      run: |
-        python generate_dataset.py
-        tar -czvf dataset.tgz dataset.npz
+      - name: Generate Dataset
+        run: |
+          python generate_dataset.py
+          tar -czvf dataset.tgz dataset.npz
 
-    - name: Train Model
-      run: python train_model.py
+      - name: Train Model
+        run: python train_model.py
 
-    - name: Generate SLSA Attestation for Dataset
-      run: |
-        checksum=$(sha256sum dataset.tgz | cut -d ' ' -f 1)
-        echo "Dataset checksum: $checksum"
-        # Use the checksum to generate SLSA attestation
+      - name: Generate SLSA Attestation for Dataset
+        run: |
+          checksum=$(sha256sum dataset.tgz | cut -d ' ' -f 1)
+          echo "Dataset checksum: $checksum"
+          # Use the checksum to generate SLSA attestation
 
-    - name: Generate SLSA Attestation for Model
-      run: |
-        checksum=$(sha256sum model.pth | cut -d ' ' -f 1)
-        echo "Model checksum: $checksum"
-        # Use the checksum to generate SLSA attestation
-    - id: hash
-      env:
-       MODEL: ${{ github.event.inputs.model_type }}
-      run: |
-        set -euo pipefail
-        (sha256sum -t "$MODEL" || shasum -a 256 "$MODEL") > checksum
-        echo "hash-${{ matrix.os }}=$(base64 -w0 checksum || base64 checksum)" >> "${GITHUB_OUTPUT}"
+      - name: Generate SLSA Attestation for Model
+        run: |
+          checksum=$(sha256sum model.pth | cut -d ' ' -f 1)
+          echo "Model checksum: $checksum"
+          # Use the checksum to generate SLSA attestation
+
+      - name: Generate Model Hash
+        id: hash
+        env:
+          MODEL: ${{ github.event.inputs.model_type }}
+        run: |
+          set -euo pipefail
+          (sha256sum -t "$MODEL" || shasum -a 256 "$MODEL") > checksum
+          echo "hash-${{ matrix.os }}=$(base64 -w0 checksum || base64 checksum)" >> "${GITHUB_OUTPUT}"
 
   provenance:
     if: ${{ github.event_name != 'pull_request' }}
     needs: [train]
-    strategy:
-        fail-fast: false # Don't cancel other jobs if one fails
-        matrix:
-          os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ubuntu-latest
     permissions:
       actions: read
