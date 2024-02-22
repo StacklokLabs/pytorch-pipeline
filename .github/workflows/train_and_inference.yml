@@ -56,7 +56,7 @@ jobs:
         id: hash
         run: echo "::set-output name=hash::$(echo 'hash-'$(sha256sum dataset.tgz | cut -d ' ' -f 1) 'hash-'$(sha256sum model.pth | cut -d ' ' -f 1))"
 
-      - name: Run SLSA generator
+      - name: Run SLSA generator on outputs
         uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
         with:
           base64-subjects: ${{ steps.hash.outputs.hash }}
