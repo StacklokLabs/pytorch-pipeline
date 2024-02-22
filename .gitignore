@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch
+*.pth
+
+# macOS
+.DS_Store
+
+# Virtual Environment
+venv/
+env/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Visual Studio Code
+.vscode/
+
+# Sublime Text
+*.sublime-workspace
+
+# IntelliJ
+.idea/
+
+# Training / inference files
+*.pth
+*.npz
