@@ -1,4 +1,4 @@
-name: Train and Inference
+name: Train and Inference with SLSA
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  train_and_inference:
+  train:
     runs-on: ubuntu-latest
     
     steps:
@@ -24,10 +24,40 @@ jobs:
         pip install -r requirements.txt
 
     - name: Generate Dataset
-      run: python generate_dataset.py
+      run: |
+        python generate_dataset.py
+        tar -czvf dataset.tgz dataset.npz
 
     - name: Train Model
       run: python train_model.py
 
-    - name: Run Inference
-      run: python run_inference.py
+    - name: Generate SLSA Attestation for Dataset
+      run: |
+        checksum=$(sha256sum dataset.tgz | cut -d ' ' -f 1)
+        echo "Dataset checksum: $checksum"
+        # Use the checksum to generate SLSA attestation
+
+    - name: Generate SLSA Attestation for Model
+      run: |
+        checksum=$(sha256sum model.pth | cut -d ' ' -f 1)
+        echo "Model checksum: $checksum"
+        # Use the checksum to generate SLSA attestation
+
+  provenance:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: [train]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    steps:
+      - name: Get outputs
+        id: hash
+        run: echo "::set-output name=hash::$(echo 'hash-'$(sha256sum dataset.tgz | cut -d ' ' -f 1) 'hash-'$(sha256sum model.pth | cut -d ' ' -f 1))"
+
+      - name: Run SLSA generator
+        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
+        with:
+          base64-subjects: ${{ steps.hash.outputs.hash }}
+          upload-assets: true
